@@ -18,7 +18,8 @@ def authenticate(url, auth):
         data = response.text
         soup = BS(data, features="xml")
         hrefs = soup.find_all('d:href')
-        print(hrefs)
+        for href in hrefs:
+            print(href)
     else:
         print(f'Request failed with code {response.status_code}.')
     # print(response.text)
