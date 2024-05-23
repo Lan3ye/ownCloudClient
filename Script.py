@@ -9,7 +9,7 @@ passwd = 'S0vrpkQ/jItB}u1O6"@<Kh'
 
 url = f"http://52.164.245.91/remote.php/dav/files/{uname}"
 
-def authenticate(url, auth):
+def getRemoteFiles(url, auth):
     tempDF = pd.DataFrame(columns=['File', 'LastMod', 'Type', 'Size', 'Quota', 'ETag'])
     headers = {'Depth': '1'} # Setting headers for the PROPFIND request
     try:
@@ -35,7 +35,8 @@ def authenticate(url, auth):
                 tempDF.loc[index] = [file, lastMod, None, size, quota, eTag]
                 index = index + 1
                 # print(eTag)
-            print(tempDF)
+            # print(tempDF)
+            return tempDF
         else:
             print(f'Request failed with code {response.status_code}.')
             # print(response.text)
@@ -44,4 +45,6 @@ def authenticate(url, auth):
 
 auth = requests.auth.HTTPBasicAuth(uname, passwd)
 # answerDF = authenticate(url, auth)
-authenticate(url, auth)
+Files = getRemoteFiles(url, auth)
+
+print(Files)
