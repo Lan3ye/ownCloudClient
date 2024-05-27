@@ -3,6 +3,7 @@ import requests.auth
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup as BS
 import pandas as pd
+from datetime import datetime
 
 uname = "OC_User_1" 
 passwd = 'S0vrpkQ/jItB}u1O6"@<Kh'
@@ -22,10 +23,12 @@ def getRemoteFiles(url, auth):
         # Getting all file events
         responses = soup.find_all('d:response')
         index = 0
+        format_str = '%a, %d %b %Y %H:%M:%S %Z'
         # print(responses)
         for response in responses:
             path = response.find('href').text
             lastMod = response.find('getlastmodified').text
+            lastMod = datetime.strptime(lastMod, format_str)
             eTag = response.find('getetag').text
 
             # Checks whether entry is a Directory or a file
