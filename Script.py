@@ -59,6 +59,7 @@ def getRemoteFiles(url, auth):
     # except Exception as e:
         # print(f'An error occured {e}')
 
+# Needs fixing. Doesn't explore entire tree. Should be using os.walk(), not os.listdir()
 def getLocalFiles(localPath):
     tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     localFiles = os.listdir(localPath)
@@ -110,7 +111,7 @@ if syncCheck > timedelta(seconds=10):
 elif syncCheck < timedelta(seconds=-10):
     syncToCloud(remoteFiles, localFiles)
 
-# # for index, row in remoteFiles.iterrows():
-# #     print(f"Row {index}: {row.to_dict()}")
+for index, row in localFiles.iterrows():
+    print(f"Row {index}: {row.to_dict()}")
 
 
