@@ -4,11 +4,14 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup as BS
 import pandas as pd
 from datetime import datetime
+import os
 
 uname = "OC_User_1" 
 passwd = 'S0vrpkQ/jItB}u1O6"@<Kh'
 
 url = f"http://52.164.245.91/remote.php/dav/files/{uname}"
+
+localPath = "testdir/"
 
 def getRemoteFiles(url, auth):
     tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size', 'Quota', 'ETag'])
@@ -27,6 +30,7 @@ def getRemoteFiles(url, auth):
         # print(responses)
         for response in responses:
             path = response.find('href').text
+            path = path.replace('/remote.php/dav/files/OC_User_1', "")
             lastMod = response.find('getlastmodified').text
             lastMod = datetime.strptime(lastMod, format_str)
             eTag = response.find('getetag').text
@@ -53,8 +57,28 @@ def getRemoteFiles(url, auth):
     # except Exception as e:
         # print(f'An error occured {e}')
 
-auth = requests.auth.HTTPBasicAuth(uname, passwd)
-remoteFiles = getRemoteFiles(url, auth)
+def getLocalFiles(localPath):
+    tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Size'])
+    localFiles = os.listdir(localPath)
+    index = 0
+    for file in localFiles:
+        fullPath = os.path.join(localPath, file)
+        if os.path.isfile(fullPath):
+            size = os.path.getsize(fullPath)
+            path = fullPath
+            lastMod = datetime.fromtimestamp(os.path.getmtime(fullPath))
+            tempDF.loc[index] = [path, lastMod, size]
+            index = index + 1
+    
+    return tempDF
 
-for index, row in remoteFiles.iterrows():
-    print(f"Row {index}: {row.to_dict()}")
+
+# auth = requests.auth.HTTPBasicAuth(uname, passwd)
+# remoteFiles = getRemoteFiles(url, auth)
+
+# # for index, row in remoteFiles.iterrows():
+# #     print(f"Row {index}: {row.to_dict()}")
+
+localFiles = getLocalFiles(localPath)
+
+print(localFiles)
