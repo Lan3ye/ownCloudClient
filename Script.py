@@ -132,11 +132,14 @@ lastLocalChange = localFiles['LastMod'].max()
 syncCheck = lastRemoteChange - lastLocalChange
 
 
-# print(syncCheck)
+print(syncCheck)
 if syncCheck > timedelta(seconds=10):
     syncToDesktop(remoteFiles, localFiles)
 elif syncCheck < timedelta(seconds=-10):
     syncToCloud(remoteFiles, localFiles)
+
+for index, row in localFiles.iterrows():
+    print(f"Row {index}: {row.to_dict()}")
 
 for index, row in remoteFiles.iterrows():
     print(f"Row {index}: {row.to_dict()}")

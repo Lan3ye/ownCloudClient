@@ -16,9 +16,9 @@ from webdav3.client import Client
 
 # Konfigurieren Sie die ownCloud WEBDAV-Client-Optionen
 optionen = {
- 'webdav_hostname': "https://OWNCLOUD_SERVER/webdav",  # ownCloud Server-URL
- 'webdav_login':    "BENUTZERNAME",  # Benutzername
- 'webdav_password': "PASSWORT"  # Passwort
+ 'webdav_hostname': "http://52.164.245.91/remote.php/dav/files/OC_User_1",  # ownCloud Server-URL
+ 'webdav_login':    "OC_User_1",  # Benutzername
+ 'webdav_password': 'S0vrpkQ/jItB}u1O6"@<Kh'  # Passwort
 }
 
 client = Client(optionen)
