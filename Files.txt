@@ -1,0 +1,22 @@
+Row 0: {'Path': 'testdir/Testdir2', 'LastMod': Timestamp('2024-05-28 08:55:48.709598+0200', tz='Europe/Berlin'), 'Type': 'Directory', 'Size': None}
+Row 1: {'Path': 'testdir/Document.txt', 'LastMod': Timestamp('2024-05-24 15:15:50.850859+0200', tz='Europe/Berlin'), 'Type': 'File', 'Size': None}
+Row 2: {'Path': 'testdir/Testdir2\\testdir3', 'LastMod': Timestamp('2024-05-28 08:55:56.641856+0200', tz='Europe/Berlin'), 'Type': 'Directory', 'Size': None}
+Row 3: {'Path': 'testdir/Testdir2/AnotherDoc.txt', 'LastMod': Timestamp('2024-05-27 16:25:07.991210+0200', tz='Europe/Berlin'), 'Type': 'File', 'Size': None}
+Row 4: {'Path': 'testdir/Testdir2/testdir3/TestDoc3.txt', 'LastMod': Timestamp('2024-05-28 08:56:00.720290+0200', tz='Europe/Berlin'), 'Type': 'File', 'Size': None}
+
+Row 0: {'Path': '/', 'LastMod': Timestamp('2024-05-27 14:24:37+0000', tz='UTC'), 'Type': 'Directory', 'Size': '4688565'}
+Row 1: {'Path': '/Documents/', 'LastMod': Timestamp('2024-05-27 14:24:37+0000', tz='UTC'), 'Type': 'Directory', 'Size': '36237'}
+Row 2: {'Path': '/Documents/Example.odt', 'LastMod': Timestamp('2024-05-20 08:40:56+0000', tz='UTC'), 'Type': 'File', 'Size': '36227'}
+Row 3: {'Path': '/Documents/Test/', 'LastMod': Timestamp('2024-05-27 14:24:37+0000', tz='UTC'), 'Type': 'Directory', 'Size': '10'}
+Row 4: {'Path': '/Documents/Test/DeepTest.txt', 'LastMod': Timestamp('2024-05-27 14:24:37+0000', tz='UTC'), 'Type': 'File', 'Size': '10'}
+Row 5: {'Path': '/Learn%20more%20about%20ownCloud/', 'LastMod': Timestamp('2024-05-20 08:40:56+0000', tz='UTC'), 'Type': 'Directory', 'Size': '3640864'}
+Row 6: {'Path': '/Learn%20more%20about%20ownCloud/Data%20Protection%20and%20Data%20Secrecy%20in%20ownCloud.pdf', 'LastMod': Timestamp('2024-05-20 08:40:56+0000', tz='UTC'), 'Type': 'File', 'Size': '418526'}
+Row 7: {'Path': '/Learn%20more%20about%20ownCloud/Introducing%20ownCloud.pdf', 'LastMod': Timestamp('2024-05-20 08:40:56+0000', tz='UTC'), 'Type': 'File', 'Size': '238300'}
+Row 8: {'Path': '/Learn%20more%20about%20ownCloud/Keep%20your%20files%20safe%20with%20ownCloud.pdf', 'LastMod': Timestamp('2024-05-20 08:40:56+0000', tz='UTC'), 'Type': 'File', 'Size': '755022'}
+Row 9: {'Path': '/Learn%20more%20about%20ownCloud/Safely%20leverage%20Microsoft%20Office.pdf', 'LastMod': Timestamp('2024-05-20 08:40:56+0000', tz='UTC'), 'Type': 'File', 'Size': '314348'}
+Row 10: {'Path': '/Learn%20more%20about%20ownCloud/Share%20files%20efficiently%20in%20your%20company.pdf', 'LastMod': Timestamp('2024-05-20 08:40:56+0000', tz='UTC'), 'Type': 'File', 'Size': '303237'}
+Row 11: {'Path': '/Learn%20more%20about%20ownCloud/ownCloud%20Subscription%20Overview.pdf', 'LastMod': Timestamp('2024-05-20 08:40:56+0000', tz='UTC'), 'Type': 'File', 'Size': '1611431'}
+Row 12: {'Path': '/Photos/', 'LastMod': Timestamp('2024-05-20 08:40:55+0000', tz='UTC'), 'Type': 'Directory', 'Size': '1011464'}
+Row 13: {'Path': '/Photos/Lake-Constance.jpg', 'LastMod': Timestamp('2024-05-20 08:40:55+0000', tz='UTC'), 'Type': 'File', 'Size': '538942'}
+Row 14: {'Path': '/Photos/Portugal.jpg', 'LastMod': Timestamp('2024-05-20 08:40:55+0000', tz='UTC'), 'Type': 'File', 'Size': '243733'}
+Row 15: {'Path': '/Photos/Teotihuacan.jpg', 'LastMod': Timestamp('2024-05-20 08:40:55+0000', tz='UTC'), 'Type': 'File', 'Size': '228789'}

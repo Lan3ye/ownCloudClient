@@ -59,31 +59,58 @@ def getRemoteFiles(url, auth):
     # except Exception as e:
         # print(f'An error occured {e}')
 
-# Needs fixing. Doesn't explore entire tree. Should be using os.walk(), not os.listdir()
-def getLocalFiles(localPath):
+def getLocalFiles(localPath, clientTZ):
     tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
-    localFiles = os.listdir(localPath)
     index = 0
-    for file in localFiles:
-        fullPath = os.path.join(localPath, file)
-        if os.path.isfile(fullPath):
-            size = os.path.getsize(fullPath)
-            path = fullPath
-            lastMod = datetime.fromtimestamp(os.path.getmtime(fullPath))
-            lastMod = lastMod.replace(tzinfo=clientTZ)
+
+    for dirpath, dirnames, filenames in os.walk(localPath):
+        # Process directories
+        for dirname in dirnames:
+            full_dir_path = os.path.join(dirpath, dirname)
+            size = None
+            path = full_dir_path
+            lastMod = datetime.fromtimestamp(os.path.getmtime(full_dir_path)).replace(tzinfo=clientTZ)
+            resType = 'Directory'
+            tempDF.loc[index] = [path, lastMod, resType, size]
+            index += 1
+
+        # Process files
+        for filename in filenames:
+            full_file_path = os.path.join(dirpath, filename)
+            size = None
+            path = full_file_path.replace("\\", "/")
+            lastMod = datetime.fromtimestamp(os.path.getmtime(full_file_path)).replace(tzinfo=clientTZ)
             resType = 'File'
             tempDF.loc[index] = [path, lastMod, resType, size]
-            index = index + 1
-        elif os.path.isdir(fullPath):
-            size = os.path.getsize(fullPath)
-            path = fullPath
-            lastMod = datetime.fromtimestamp(os.path.getmtime(fullPath))
-            lastMod = lastMod.replace(tzinfo=clientTZ)
-            tempDF.loc[index] = [path, lastMod, resType, size]
-            resType = 'Directory'
-            index = index + 1
-    
+            index += 1
+
     return tempDF
+
+# Needs fixing. Doesn't explore entire tree. Should be using os.walk(), not os.listdir()
+# def getLocalFiles(localPath, clientTZ):
+#     tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
+#     localFiles = os.listdir(localPath)
+#     index = 0
+#     for file in localFiles:
+#         fullPath = os.path.join(localPath, file)
+#         if os.path.isfile(fullPath):
+#             size = os.path.getsize(fullPath)
+#             path = fullPath
+#             lastMod = datetime.fromtimestamp(os.path.getmtime(fullPath))
+#             lastMod = lastMod.replace(tzinfo=clientTZ)
+#             resType = 'File'
+#             tempDF.loc[index] = [path, lastMod, resType, size]
+#             index = index + 1
+#         elif os.path.isdir(fullPath):
+#             size = os.path.getsize(fullPath)
+#             path = fullPath
+#             lastMod = datetime.fromtimestamp(os.path.getmtime(fullPath))
+#             lastMod = lastMod.replace(tzinfo=clientTZ)
+#             tempDF.loc[index] = [path, lastMod, resType, size]
+#             resType = 'Directory'
+#             index = index + 1
+    
+#     return tempDF
 
 def syncToCloud(remoteFiles, localFiles):
     print('syncToCloud')
@@ -93,25 +120,25 @@ def syncToDesktop(remoteFiles, localFiles):
 
 auth = requests.auth.HTTPBasicAuth(uname, passwd)
 remoteFiles = getRemoteFiles(url, auth)
-localFiles = getLocalFiles(localPath)
+localFiles = getLocalFiles(localPath, clientTZ)
 
 lastRemoteChange = remoteFiles['LastMod'].max()
 lastLocalChange = localFiles['LastMod'].max()
 # lastLocalChange = int(localFiles['LastMod'].max().timestamp())
 
-print(lastRemoteChange)
-print(lastLocalChange)
+# print(lastRemoteChange)
+# print(lastLocalChange)
 
 syncCheck = lastRemoteChange - lastLocalChange
 
 
-print(syncCheck)
+# print(syncCheck)
 if syncCheck > timedelta(seconds=10):
     syncToDesktop(remoteFiles, localFiles)
 elif syncCheck < timedelta(seconds=-10):
     syncToCloud(remoteFiles, localFiles)
 
-for index, row in localFiles.iterrows():
+for index, row in remoteFiles.iterrows():
     print(f"Row {index}: {row.to_dict()}")
 
 
