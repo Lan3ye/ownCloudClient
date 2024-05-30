@@ -11,6 +11,7 @@ import tzlocal
 uname = "OC_User_1" 
 passwd = 'S0vrpkQ/jItB}u1O6"@<Kh'
 url = f"http://52.164.245.91/remote.php/dav/files/{uname}"
+auth = requests.auth.HTTPBasicAuth(uname, passwd)
 localPath = "testdir/"
 clientTZ = tzlocal.get_localzone()
 
@@ -31,7 +32,7 @@ def getRemoteFiles(url, auth):
         # print(responses)
         for response in responses:
             path = response.find('href').text
-            path = path.replace('/remote.php/dav/files/OC_User_1', "")
+            path = path.replace('/remote.php/dav/files/OC_User_1/', "")
             lastModStr = response.find('getlastmodified').text
             lastMod = datetime.strptime(lastModStr, format_str)
             lastMod = lastMod.replace(tzinfo=pytz.UTC)
@@ -68,7 +69,7 @@ def getLocalFiles(localPath, clientTZ):
         for dirname in dirnames:
             full_dir_path = os.path.join(dirpath, dirname)
             size = None
-            path = full_dir_path
+            path = full_dir_path.replace("\\", "/")
             lastMod = datetime.fromtimestamp(os.path.getmtime(full_dir_path)).replace(tzinfo=clientTZ)
             resType = 'Directory'
             tempDF.loc[index] = [path, lastMod, resType, size]
@@ -112,13 +113,55 @@ def getLocalFiles(localPath, clientTZ):
     
 #     return tempDF
 
-def syncToCloud(remoteFiles, localFiles):
+def syncToCloud(remoteFiles, localFiles, auth):
+    toUpload = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
+    toDelete = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     print('syncToCloud')
-def syncToDesktop(remoteFiles, localFiles):
+    for index, row in localFiles.iterrows():
+        path = row['Path']
+        if path in remoteFiles['Path'].values:
+            localLastMod = row['LastMod']
+            remoteLastMod = remoteFiles.loc[remoteFiles['Path'] == path, 'LastMod']
+            timeDiff = localLastMod - remoteLastMod
+            if timeDiff > timedelta(seconds=10):
+                toUpload = pd.concat([toUpload, pd.DataFrame([row])], ignore_index=True)
+                
+        else:
+            print(f"Path not found in row {index}.")
+            toUpload = pd.concat([toUpload, pd.DataFrame([row])], ignore_index=True)
+    
+    # Add delete algorithm
+    for index, row in remoteFiles.iterrows():
+        path = row['Path']
+        if path not in localFiles['Path'].values:
+            toDelete = pd.concat([toDelete, pd.DataFrame([row])], ignore_index=True)
+
+    # Creating directories on WebDAV-Server
+    for index, row in toUpload[toUpload['Type'] == 'Directory'].iterrows():
+        Directory =  url + "/" + row['Path'] + "/"
+        print(Directory)
+        response = requests.request("MKCOL", Directory, auth=auth)
+        if response.status_code == 201:
+            print("File uploaded successfully.")
+        elif response.status_code == 405:
+            print("Directory already exists.") 
+        else: 
+            print(f"Failed to upload file. Status code: {response.status_code}")
+
+    # Uploading files to WebDAV-Server
+    # for index, row in toUpload[toUpload['Type'] == 'File'].iterrows():
+    #     with open(path, 'rb') as file:
+    #         response = requests.put(url + path, data=file)
+    #         if response.status_code == 201:
+    #             print("File uploaded successfully.")
+    #         else: 
+    #             print(f"Failed to upload file. Status code: {response.status_code}")
+
+def syncToDesktop(remoteFiles, localFiles, auth):
     # 1. Check whether files exist in both DFs
     print('syncToDesktop')
 
-auth = requests.auth.HTTPBasicAuth(uname, passwd)
+
 remoteFiles = getRemoteFiles(url, auth)
 localFiles = getLocalFiles(localPath, clientTZ)
 
@@ -134,14 +177,15 @@ syncCheck = lastRemoteChange - lastLocalChange
 
 print(syncCheck)
 if syncCheck > timedelta(seconds=10):
-    syncToDesktop(remoteFiles, localFiles)
+    syncToDesktop(remoteFiles, localFiles, auth)
 elif syncCheck < timedelta(seconds=-10):
-    syncToCloud(remoteFiles, localFiles)
+    syncToCloud(remoteFiles, localFiles, auth)
 
-for index, row in localFiles.iterrows():
-    print(f"Row {index}: {row.to_dict()}")
+# for index, row in localFiles.iterrows():
+#     print(f"Row {index}: {row.to_dict()}")
 
-for index, row in remoteFiles.iterrows():
-    print(f"Row {index}: {row.to_dict()}")
+# for index, row in remoteFiles.iterrows():
+#     print(f"Row {index}: {row.to_dict()}")
 
-
+# for path in remoteFiles['Path']:
+#     print(path)
