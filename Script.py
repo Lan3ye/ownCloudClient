@@ -116,13 +116,14 @@ def getLocalFiles(localPath, clientTZ):
 def syncToCloud(remoteFiles, localFiles, auth):
     toUpload = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     toDelete = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
-    print('syncToCloud')
+    print('Syncing to Cloud')
     for index, row in localFiles.iterrows():
         path = row['Path']
         if path in remoteFiles['Path'].values:
             localLastMod = row['LastMod']
             remoteLastMod = remoteFiles.loc[remoteFiles['Path'] == path, 'LastMod']
             timeDiff = localLastMod - remoteLastMod
+            # Something's not quite working with the time diff
             if timeDiff > timedelta(seconds=10):
                 toUpload = pd.concat([toUpload, pd.DataFrame([row])], ignore_index=True)
                 
@@ -149,13 +150,15 @@ def syncToCloud(remoteFiles, localFiles, auth):
             print(f"Failed to upload file. Status code: {response.status_code}")
 
     # Uploading files to WebDAV-Server
-    # for index, row in toUpload[toUpload['Type'] == 'File'].iterrows():
-    #     with open(path, 'rb') as file:
-    #         response = requests.put(url + path, data=file)
-    #         if response.status_code == 201:
-    #             print("File uploaded successfully.")
-    #         else: 
-    #             print(f"Failed to upload file. Status code: {response.status_code}")
+    if not toUpload[toUpload['Type'] == 'File'].empty:
+        for index, row in toUpload[toUpload['Type'] == 'File'].iterrows():
+            path = row['Path']
+            with open(path, 'rb') as file:
+                response = requests.put(url + "/" + path, data=file, auth=auth)
+                if response.status_code == 201:
+                    print("File uploaded successfully.")
+                else: 
+                    print(f"Failed to upload file. Status code: {response.status_code}")
 
 def syncToDesktop(remoteFiles, localFiles, auth):
     # 1. Check whether files exist in both DFs
@@ -176,11 +179,11 @@ syncCheck = lastRemoteChange - lastLocalChange
 
 
 print(syncCheck)
-if syncCheck > timedelta(seconds=10):
-    syncToDesktop(remoteFiles, localFiles, auth)
-elif syncCheck < timedelta(seconds=-10):
-    syncToCloud(remoteFiles, localFiles, auth)
-
+# if syncCheck > timedelta(seconds=10):
+#     syncToDesktop(remoteFiles, localFiles, auth)
+# elif syncCheck < timedelta(seconds=-10):
+#     syncToCloud(remoteFiles, localFiles, auth)
+syncToCloud(remoteFiles, localFiles, auth)
 # for index, row in localFiles.iterrows():
 #     print(f"Row {index}: {row.to_dict()}")
 
