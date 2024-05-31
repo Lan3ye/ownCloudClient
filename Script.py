@@ -16,54 +16,56 @@ localPath = "testdir/"
 clientTZ = tzlocal.get_localzone()
 
 def getRemoteFiles(url, auth):
-    tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size']) #, 'Quota', 'ETag'])
+    """Sends PROPFIND request to WebDAV-Server to retrieve
+    server directories and files. Returns pandas DataFrame.
+    Structure: ['Path', 'LastMod', 'Type', 'Size']"""
+
+    tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     headers = {'Depth': '50'} # Setting headers for the PROPFIND request
-    # try:
     answer = requests.request('PROPFIND', url, auth=auth, headers=headers)
-    # print(answer.status_code)
+
     if answer.status_code == 207:
-        # print(answer.text)
+        print(f"Remote connection to {url} established. Getting files...")
         data = answer.text
         soup = BS(data, features="xml")
         # Getting all file events
         responses = soup.find_all('d:response')
         index = 0
         format_str = '%a, %d %b %Y %H:%M:%S %Z'
-        # print(responses)
+        
+        # Looping through all returned files to retrieve relevant information
         for response in responses:
             path = response.find('href').text
             path = path.replace('/remote.php/dav/files/OC_User_1/', "")
             lastModStr = response.find('getlastmodified').text
             lastMod = datetime.strptime(lastModStr, format_str)
             lastMod = lastMod.replace(tzinfo=pytz.UTC)
-            # eTag = response.find('getetag').text
 
             # Checks whether entry is a Directory or a file
             if response.find('collection') != None:
                 size = response.find('quota-used-bytes').text
-                # quota = response.find('quota-available-bytes').text
                 resType = 'Directory'
-                # print(resType)
             else:
                 size = response.find('getcontentlength').text
-                # quota = None
                 resType = 'File'
 
-            tempDF.loc[index] = [path, lastMod, resType, size] #, quota, eTag]
+            # Adding file information to DataFrame 'tempDF'
+            tempDF.loc[index] = [path, lastMod, resType, size]
             index = index + 1
-
-        # print(tempDF)
+        print("Remote files successfully processed.")
         return tempDF
+    
     else:
-        print(f'Request failed with code {response.status_code}.')
-        # print(response.text)
-    # except Exception as e:
-        # print(f'An error occured {e}')
+        print(f'Request to {url} failed with code {response.status_code}.')
 
-def getLocalFiles(localPath, clientTZ):
+def getLocalFiles(localPath=str, clientTZ=any):
+    """Uses os.walk to to gather information about files and subdirectories in 
+    local directory. Returns pandas DataFrame. Structure: ['Path', 'LastMod', 'Type', 'Size']."""
+
     tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     index = 0
 
+    print(f"Gathering files and directories from directory {localPath}...")
     for dirpath, dirnames, filenames in os.walk(localPath):
         # Process directories
         for dirname in dirnames:
@@ -84,39 +86,17 @@ def getLocalFiles(localPath, clientTZ):
             resType = 'File'
             tempDF.loc[index] = [path, lastMod, resType, size]
             index += 1
-
+    print("Files and directories successfully processed.")
     return tempDF
 
-# Needs fixing. Doesn't explore entire tree. Should be using os.walk(), not os.listdir()
-# def getLocalFiles(localPath, clientTZ):
-#     tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
-#     localFiles = os.listdir(localPath)
-#     index = 0
-#     for file in localFiles:
-#         fullPath = os.path.join(localPath, file)
-#         if os.path.isfile(fullPath):
-#             size = os.path.getsize(fullPath)
-#             path = fullPath
-#             lastMod = datetime.fromtimestamp(os.path.getmtime(fullPath))
-#             lastMod = lastMod.replace(tzinfo=clientTZ)
-#             resType = 'File'
-#             tempDF.loc[index] = [path, lastMod, resType, size]
-#             index = index + 1
-#         elif os.path.isdir(fullPath):
-#             size = os.path.getsize(fullPath)
-#             path = fullPath
-#             lastMod = datetime.fromtimestamp(os.path.getmtime(fullPath))
-#             lastMod = lastMod.replace(tzinfo=clientTZ)
-#             tempDF.loc[index] = [path, lastMod, resType, size]
-#             resType = 'Directory'
-#             index = index + 1
-    
-#     return tempDF
+def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url=str):
+    """Synchronizes WebDAV server with local files using pandas DataFrames.
+    Uploads missing files to WebDAV server. Deletes files not found
+    in local directory from server."""
 
-def syncToCloud(remoteFiles, localFiles, auth):
     toUpload = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     toDelete = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
-    print('Syncing to Cloud')
+    print(f'Syncing to WebDAV server {url}...')
     for index, row in localFiles.iterrows():
         path = row['Path']
         if path in remoteFiles['Path'].values:
@@ -160,9 +140,9 @@ def syncToCloud(remoteFiles, localFiles, auth):
                 else: 
                     print(f"Failed to upload file. Status code: {response.status_code}")
 
-def syncToDesktop(remoteFiles, localFiles, auth):
+def syncToDesktop(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url=str):
     # 1. Check whether files exist in both DFs
-    print('syncToDesktop')
+    print('syncToDesktop currently WIP.')
 
 
 remoteFiles = getRemoteFiles(url, auth)
@@ -178,17 +158,19 @@ lastLocalChange = localFiles['LastMod'].max()
 syncCheck = lastRemoteChange - lastLocalChange
 
 
-print(syncCheck)
-# if syncCheck > timedelta(seconds=10):
-#     syncToDesktop(remoteFiles, localFiles, auth)
-# elif syncCheck < timedelta(seconds=-10):
-#     syncToCloud(remoteFiles, localFiles, auth)
-syncToCloud(remoteFiles, localFiles, auth)
+print(f"Time stamp difference: {syncCheck}")
+if syncCheck > timedelta(seconds=10):
+    print("Local files out of date.")
+    syncToDesktop(remoteFiles, localFiles, auth, url)
+elif syncCheck < timedelta(seconds=-10):
+    print("Remote files out f date.")
+    syncToCloud(remoteFiles, localFiles, auth, url)
+
+print("Exiting.")
+# syncToCloud(remoteFiles, localFiles, auth)
 # for index, row in localFiles.iterrows():
 #     print(f"Row {index}: {row.to_dict()}")
 
 # for index, row in remoteFiles.iterrows():
 #     print(f"Row {index}: {row.to_dict()}")
 
-# for path in remoteFiles['Path']:
-#     print(path)
