@@ -8,6 +8,7 @@ import os
 import pytz
 import tzlocal
 import warnings
+import time
 
 warnings.filterwarnings("ignore", category=FutureWarning, message=".*DataFrame concatenation with empty or all-NA entries.*")
 
@@ -75,6 +76,7 @@ def getLocalFiles(localPath=str, clientTZ=any):
             full_dir_path = os.path.join(dirpath, dirname)
             size = None
             path = full_dir_path.replace("\\", "/")
+            path = path + "/"
             lastMod = datetime.fromtimestamp(os.path.getmtime(full_dir_path)).replace(tzinfo=clientTZ)
             resType = 'Directory'
             tempDF.loc[index] = [path, lastMod, resType, size]
@@ -115,37 +117,45 @@ def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url
                 toUpload = pd.concat([toUpload, pd.DataFrame([row])], ignore_index=True)
                 
         else:
-            print(f"Path not found in row {index}.")
+            print(f"{path} not found on Server. (row {index})")
             toUpload = pd.concat([toUpload, pd.DataFrame([row])], ignore_index=True)
-    
-    # Add delete algorithm
-    for index, row in remoteFiles.iterrows():
-        path = row['Path']
-        if path not in localFiles['Path'].values:
-            toDelete = pd.concat([toDelete, pd.DataFrame([row])], ignore_index=True)
 
     # Creating directories on WebDAV-Server
     for index, row in toUpload[toUpload['Type'] == 'Directory'].iterrows():
         Directory =  url + "/" + row['Path'] + "/"
-        print(Directory)
+        print(f"Creating {row['Path']}")
         response = requests.request("MKCOL", Directory, auth=auth)
         if response.status_code == 201:
-            print("File uploaded successfully.")
+            print(f"{row['Path']} created successfully. (201)")
         elif response.status_code == 405:
-            print("Directory already exists.") 
+            print(f"{row['Path']} already exists.") 
         else: 
-            print(f"Failed to upload file. Status code: {response.status_code}")
+            print(f"Failed to create {row['Path']}. Status code: {response.status_code}")
 
     # Uploading files to WebDAV-Server
     if not toUpload[toUpload['Type'] == 'File'].empty:
         for index, row in toUpload[toUpload['Type'] == 'File'].iterrows():
             path = row['Path']
             with open(path, 'rb') as file:
+                print(f"Uploading {path}")
                 response = requests.put(url + "/" + path, data=file, auth=auth)
                 if response.status_code == 201:
-                    print("File uploaded successfully.")
+                    print(f"{path} uploaded successfully. (201)")
+                elif response.status_code == 204:
+                    print(f"{path} updated successfully. (204)")
                 else: 
-                    print(f"Failed to upload file. Status code: {response.status_code}")
+                    print(f"Failed to upload {path}. Status code: {response.status_code}")
+    
+    # Add delete algorithm
+    for index, row in remoteFiles.iterrows():
+        path = row['Path']
+        if path not in localFiles['Path'].values and path != "":
+            toDelete = pd.concat([toDelete, pd.DataFrame([row])], ignore_index=True)
+    
+    if not toDelete.empty:
+        for index, row in toDelete.iterrows():
+            path = row['Path']
+            print(path)
 
 def syncToDesktop(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url=str):
     """Synchronizes local files with WebDAV server using pandas DataFrames.
@@ -154,27 +164,38 @@ def syncToDesktop(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, u
     # 1. Check whether files exist in both DFs
     print('syncToDesktop currently WIP.')
 
-
-remoteFiles = getRemoteFiles(url, auth)
 localFiles = getLocalFiles(localPath, clientTZ)
+remoteFiles = getRemoteFiles(url, auth)
 
-lastRemoteChange = remoteFiles['LastMod'].max()
-lastLocalChange = localFiles['LastMod'].max()
-# lastLocalChange = int(localFiles['LastMod'].max().timestamp())
+while True:
+    lastRemoteChange = remoteFiles['LastMod'].max()
+    lastLocalChange = localFiles['LastMod'].max()
+    # lastLocalChange = int(localFiles['LastMod'].max().timestamp())
 
-# print(lastRemoteChange)
-# print(lastLocalChange)
+    # print(lastRemoteChange)
+    # print(lastLocalChange)
 
-syncCheck = lastRemoteChange - lastLocalChange
+    syncCheck = lastRemoteChange - lastLocalChange
 
-
-print(f"Time stamp difference: {syncCheck}")
-if syncCheck > timedelta(seconds=10):
-    print("Local files out of date.")
-    syncToDesktop(remoteFiles, localFiles, auth, url)
-elif syncCheck < timedelta(seconds=-10):
-    print("Remote files out f date.")
-    syncToCloud(remoteFiles, localFiles, auth, url)
+    print(f"Time stamp difference: {syncCheck}")
+    if syncCheck > timedelta(seconds=10):
+        print("Local files out of date.")
+        syncToDesktop(remoteFiles, localFiles, auth, url)
+    elif syncCheck < timedelta(seconds=-10):
+        print("Remote files out of date.")
+        syncToCloud(remoteFiles, localFiles, auth, url)
+    elif syncCheck < timedelta(seconds=10) and syncCheck > timedelta(seconds=-10):
+        if remoteFiles != getRemoteFiles(url, auth):
+            remoteFiles = getRemoteFiles(url, auth)
+            syncToDesktop(remoteFiles, localFiles, auth, url)
+        
+        if localFiles != getLocalFiles(localPath, clientTZ):
+            localFiles = getLocalFiles(localPath, clientTZ)
+            syncToCloud(remoteFiles, localFiles, auth, url)
+            remoteFiles = getRemoteFiles(url, auth)
+    else:
+        print("An error occured in determining syncCheck.")
+    time.sleep(10)
 
 print("Exiting.")
 # syncToCloud(remoteFiles, localFiles, auth)
