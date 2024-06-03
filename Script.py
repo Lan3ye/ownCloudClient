@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 import os
 import pytz
 import tzlocal
+import warnings
+
+warnings.filterwarnings("ignore", category=FutureWarning, message=".*DataFrame concatenation with empty or all-NA entries.*")
 
 uname = "OC_User_1" 
 passwd = 'S0vrpkQ/jItB}u1O6"@<Kh'
@@ -65,7 +68,7 @@ def getLocalFiles(localPath=str, clientTZ=any):
     tempDF = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     index = 0
 
-    print(f"Gathering files and directories from directory {localPath}...")
+    print(f"Gathering files and directories from directory {localPath} ...")
     for dirpath, dirnames, filenames in os.walk(localPath):
         # Process directories
         for dirname in dirnames:
@@ -101,7 +104,11 @@ def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url
         path = row['Path']
         if path in remoteFiles['Path'].values:
             localLastMod = row['LastMod']
+            if isinstance(localLastMod, pd.Series):
+                localLastMod = localLastMod.iloc[0]
             remoteLastMod = remoteFiles.loc[remoteFiles['Path'] == path, 'LastMod']
+            if isinstance(remoteLastMod, pd.Series):
+                remoteLastMod = remoteLastMod.iloc[0]
             timeDiff = localLastMod - remoteLastMod
             # Something's not quite working with the time diff
             if timeDiff > timedelta(seconds=10):
@@ -141,6 +148,9 @@ def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url
                     print(f"Failed to upload file. Status code: {response.status_code}")
 
 def syncToDesktop(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url=str):
+    """Synchronizes local files with WebDAV server using pandas DataFrames.
+    Uploads missing files to device. Deletes files not found
+    on server from local device."""
     # 1. Check whether files exist in both DFs
     print('syncToDesktop currently WIP.')
 
