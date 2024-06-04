@@ -18,6 +18,7 @@ url = f"http://52.164.245.91/remote.php/dav/files/{uname}"
 auth = requests.auth.HTTPBasicAuth(uname, passwd)
 localPath = "testdir/"
 clientTZ = tzlocal.get_localzone()
+timeTol = 20 # Time tolerance in seconds
 
 def getRemoteFiles(url, auth):
     """Sends PROPFIND request to WebDAV-Server to retrieve
@@ -42,16 +43,19 @@ def getRemoteFiles(url, auth):
             path = response.find('href').text
             path = path.replace('/remote.php/dav/files/OC_User_1/', "")
             lastModStr = response.find('getlastmodified').text
-            lastMod = datetime.strptime(lastModStr, format_str)
-            lastMod = lastMod.replace(tzinfo=pytz.UTC)
+
 
             # Checks whether entry is a Directory or a file
             if response.find('collection') != None:
                 size = response.find('quota-used-bytes').text
                 resType = 'Directory'
+                lastMod = None
             else:
                 size = response.find('getcontentlength').text
                 resType = 'File'
+                lastModStr = response.find('getlastmodified').text
+                lastMod = datetime.strptime(lastModStr, format_str)
+                lastMod = lastMod.replace(tzinfo=pytz.UTC)
 
             # Adding file information to DataFrame 'tempDF'
             tempDF.loc[index] = [path, lastMod, resType, size]
@@ -78,7 +82,7 @@ def getLocalFiles(localPath=str, clientTZ=any):
             path = full_dir_path.replace("\\", "/")
             path = path + "/"
             path = path[len(localPath):]
-            lastMod = datetime.fromtimestamp(os.path.getmtime(full_dir_path)).replace(tzinfo=clientTZ)
+            lastMod = None
             resType = 'Directory'
             tempDF.loc[index] = [path, lastMod, resType, size]
             index += 1
@@ -96,7 +100,7 @@ def getLocalFiles(localPath=str, clientTZ=any):
     print("Files and directories successfully processed.")
     return tempDF
 
-def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url=str):
+def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, localPath=str, auth=any, url=str):
     """Synchronizes WebDAV server with local files using pandas DataFrames.
     Uploads missing files to WebDAV server. Deletes files not found
     in local directory from server."""
@@ -117,7 +121,7 @@ def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url
                 remoteLastMod = remoteLastMod.iloc[0]
             timeDiff = localLastMod - remoteLastMod
             # Something's not quite working with the time diff
-            if timeDiff > timedelta(seconds=10):
+            if timeDiff > timedelta(seconds=timeTol):
                 toUpload = pd.concat([toUpload, pd.DataFrame([row])], ignore_index=True)
                 
         else:
@@ -198,7 +202,7 @@ def syncToDesktop(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, localPath=s
                 if isinstance(localLastMod, pd.Series):
                     localLastMod = localLastMod.iloc[0]
                 timeDiff = remoteLastMod - localLastMod
-                if timeDiff > timedelta(seconds=10):
+                if timeDiff > timedelta(seconds=timeTol):
                     print()
                     toDownload = pd.concat([toDownload, pd.DataFrame([row])], ignore_index=True)
 
@@ -269,48 +273,52 @@ def syncToDesktop(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, localPath=s
 localFiles = getLocalFiles(localPath, clientTZ)
 remoteFiles = getRemoteFiles(url, auth)
 
-syncToDesktop(remoteFiles, localFiles, localPath, auth, url)
+while True:
+    lastRemoteChange = remoteFiles['LastMod'].max()
+    print(f"Last remote change: {remoteFiles.loc[remoteFiles['LastMod'].idxmax()]}")
+    # print("Last remote change:")
+    # print(remoteFiles[remoteFiles['LastMod'] == remoteFiles['LastMod'].max()])
+    lastLocalChange = localFiles['LastMod'].max()
+    print(f"Last local change: {localFiles.loc[localFiles['LastMod'].idxmax()]}")
+    # print("Last local change:")
+    # print(localFiles[localFiles['LastMod'] == localFiles['LastMod'].max()])
+    # # lastLocalChange = int(localFiles['LastMod'].max().timestamp())
 
-# while True:
-#     lastRemoteChange = remoteFiles['LastMod'].max()
-#     # print("Last remote change:")
-#     # print(remoteFiles[remoteFiles['LastMod'] == remoteFiles['LastMod'].max()])
-#     lastLocalChange = localFiles['LastMod'].max()
-#     # print("Last local change:")
-#     # print(localFiles[localFiles['LastMod'] == localFiles['LastMod'].max()])
-#     # # lastLocalChange = int(localFiles['LastMod'].max().timestamp())
+    # print(lastRemoteChange)
+    # print(lastLocalChange)
 
-#     # print(lastRemoteChange)
-#     # print(lastLocalChange)
+    syncCheck = lastRemoteChange - lastLocalChange
 
-#     syncCheck = lastRemoteChange - lastLocalChange
-
-#     print(f"Time stamp difference: {syncCheck}")
-#     # If the local files are more than 10 seconds older than the server files
-#     if syncCheck > timedelta(seconds=10):
-#         print("Local files out of date.")
-#         syncToDesktop(remoteFiles, localFiles, auth, url)
-#         localFiles = getLocalFiles(localPath, clientTZ)
-#     # If the server files are more than 10 second older than the local files
-#     elif syncCheck < timedelta(seconds=-10):
-#         print("Remote files out of date.")
-#         syncToCloud(remoteFiles, localFiles, auth, url)
-#         remoteFiles = getRemoteFiles(url, auth)
-#     # If the timestamps on server or client are within +-10 seconds of each other
-#     elif syncCheck < timedelta(seconds=10) and syncCheck > timedelta(seconds=-10):
-#         # If the remoteFiles had a change in the last 10 seconds
-#         if not remoteFiles.equals(getRemoteFiles(url, auth)):
-#             remoteFiles = getRemoteFiles(url, auth)
-#             syncToDesktop(remoteFiles, localFiles, auth, url)
+    print(f"Time stamp difference: {syncCheck}")
+    # If the local files are more than 10 seconds older than the server files
+    if syncCheck > timedelta(seconds=timeTol):
+        print("Local files out of date.")
+        syncToDesktop(remoteFiles, localFiles, localPath, auth, url)
+        localFiles = getLocalFiles(localPath, clientTZ)
+    # If the server files are more than 10 second older than the local files
+    elif syncCheck < timedelta(seconds=-timeTol):
+        print("Remote files out of date.")
+        syncToCloud(remoteFiles, localFiles, localPath, auth, url)
+        remoteFiles = getRemoteFiles(url, auth)
+    # If the timestamps on server or client are within +-10 seconds of each other
+    elif syncCheck < timedelta(seconds=timeTol) and syncCheck > timedelta(seconds=-timeTol):
+        # If the remoteFiles had a change in the last 10 seconds
+        if not remoteFiles.equals(getRemoteFiles(url, auth)):
+            remoteFiles = getRemoteFiles(url, auth)
+            syncToDesktop(remoteFiles, localFiles, localPath, auth, url)
+            localFiles = getLocalFiles(localPath, clientTZ)
         
-#         # If the localFiles had a change in the last 10 seconds
-#         if not localFiles.equals(getLocalFiles(localPath, clientTZ)):
-#             localFiles = getLocalFiles(localPath, clientTZ)
-#             syncToCloud(remoteFiles, localFiles, auth, url)
-#             remoteFiles = getRemoteFiles(url, auth)
-#     else:
-#         print("An error occured in determining syncCheck.")
-#     time.sleep(10)
+        # If the localFiles had a change in the last 10 seconds
+        elif not localFiles.equals(getLocalFiles(localPath, clientTZ)):
+            localFiles = getLocalFiles(localPath, clientTZ)
+            syncToCloud(remoteFiles, localFiles, localPath, auth, url)
+            remoteFiles = getRemoteFiles(url, auth)
+        else:
+            print("Files in sync.")
+    else:
+        print("An error occured in determining syncCheck.")
+    print("----------------------------------------------------------------------------------")
+    time.sleep(10)
 
 print("Exiting.")
 # syncToCloud(remoteFiles, localFiles, auth)
