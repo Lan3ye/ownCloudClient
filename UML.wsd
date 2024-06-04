@@ -13,9 +13,9 @@ repeat
     elseif (Lokal Veränderungen festgestellt) then (Ja)
         :syncToDesktop() \ngetLocalFiles();
     elseif (Veränderungen bei Server festgestellt) then (Ja)
-        :syncToCloud \ngetRemoteFiles();
+        :syncToCloud() \ngetRemoteFiles();
     elseif (Dateien synchron) then (Ja)
-        :print(Status);
+        :print(synchron);
     else ()
         :Interner Fehler;
     endif
