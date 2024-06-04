@@ -169,8 +169,12 @@ remoteFiles = getRemoteFiles(url, auth)
 
 while True:
     lastRemoteChange = remoteFiles['LastMod'].max()
+    # print("Last remote change:")
+    # print(remoteFiles[remoteFiles['LastMod'] == remoteFiles['LastMod'].max()])
     lastLocalChange = localFiles['LastMod'].max()
-    # lastLocalChange = int(localFiles['LastMod'].max().timestamp())
+    # print("Last local change:")
+    # print(localFiles[localFiles['LastMod'] == localFiles['LastMod'].max()])
+    # # lastLocalChange = int(localFiles['LastMod'].max().timestamp())
 
     # print(lastRemoteChange)
     # print(lastLocalChange)
@@ -178,18 +182,25 @@ while True:
     syncCheck = lastRemoteChange - lastLocalChange
 
     print(f"Time stamp difference: {syncCheck}")
+    # If the local files are more than 10 seconds older than the server files
     if syncCheck > timedelta(seconds=10):
         print("Local files out of date.")
         syncToDesktop(remoteFiles, localFiles, auth, url)
+        localFiles = getLocalFiles(localPath, clientTZ)
+    # If the server files are more than 10 second older than the local files
     elif syncCheck < timedelta(seconds=-10):
         print("Remote files out of date.")
         syncToCloud(remoteFiles, localFiles, auth, url)
+        remoteFiles = getRemoteFiles(url, auth)
+    # If the timestamps on server or client are within +-10 seconds of each other
     elif syncCheck < timedelta(seconds=10) and syncCheck > timedelta(seconds=-10):
-        if remoteFiles != getRemoteFiles(url, auth):
+        # If the remoteFiles had a change in the last 10 seconds
+        if not remoteFiles.equals(getRemoteFiles(url, auth)):
             remoteFiles = getRemoteFiles(url, auth)
             syncToDesktop(remoteFiles, localFiles, auth, url)
         
-        if localFiles != getLocalFiles(localPath, clientTZ):
+        # If the localFiles had a change in the last 10 seconds
+        if not localFiles.equals(getLocalFiles(localPath, clientTZ)):
             localFiles = getLocalFiles(localPath, clientTZ)
             syncToCloud(remoteFiles, localFiles, auth, url)
             remoteFiles = getRemoteFiles(url, auth)
