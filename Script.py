@@ -104,6 +104,7 @@ def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url
     toUpload = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     toDelete = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
     print(f'Syncing to WebDAV server {url}...')
+    # Checking which files to upload
     for index, row in localFiles.iterrows():
         path = row['Path']
 
@@ -177,17 +178,98 @@ def syncToCloud(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url
             else:
                 print(f"Error deleting {row['Type']}: {path} - Status code: {response.status_code}")
 
-def syncToDesktop(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, auth=any, url=str):
+def syncToDesktop(remoteFiles=pd.DataFrame, localFiles=pd.DataFrame, localPath=str, auth=any, url=str):
     """Synchronizes local files with WebDAV server using pandas DataFrames.
     Uploads missing files to device. Deletes files not found
     on server from local device."""
     # 1. Check whether files exist in both DFs
-    print('syncToDesktop currently WIP.')
+    toDownload = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
+    toDelete = pd.DataFrame(columns=['Path', 'LastMod', 'Type', 'Size'])
+    print(f'Syncing from WebDAV server {url}...')
+    for index, row in remoteFiles.iterrows():
+        path = row['Path']
+        
+        if path in localFiles['Path'].values:
+            if row['Type'] == 'File':
+                remoteLastMod = row['LastMod']
+                if isinstance(remoteLastMod, pd.Series):
+                    remoteLastMod = remoteLastMod.iloc[0]
+                localLastMod = localFiles.loc[localFiles['Path'] == path, 'LastMod']
+                if isinstance(localLastMod, pd.Series):
+                    localLastMod = localLastMod.iloc[0]
+                timeDiff = remoteLastMod - localLastMod
+                if timeDiff > timedelta(seconds=10):
+                    print()
+                    toDownload = pd.concat([toDownload, pd.DataFrame([row])], ignore_index=True)
+
+        else:
+            print(f"{path} not found on device. (row {index})")
+            toDownload = pd.concat([toDownload, pd.DataFrame([row])], ignore_index=True)
+
+    # Sorting DataFrame to download in correct order
+    sortedIndex = toDownload['Path'].str.len().sort_values().index
+    toDownload = toDownload.reindex(sortedIndex)
+
+    print(toDownload)
+    # Creating directories on device
+    for index, row in toDownload[toDownload['Type'] == 'Directory'].iterrows():
+        Directory = localPath + row['Path']
+        print(f"Creating directory {row['Path']}")
+        try:
+            os.mkdir(Directory)
+        except FileExistsError:
+            print(f"Directory {Directory} already exists.")
+
+    # Downloading files
+    for index, row in toDownload[toDownload['Type'] == 'File'].iterrows():
+        path = row['Path']
+        response = requests.get(url + "/" + path, auth=auth)
+        content = response.content
+        if response.status_code == 200:
+            with open(localPath + path, "wb") as file:
+                file.write(content)
+            print(f"File {path} downloaded successfully.")
+        else:
+            print(f"Failed to downlaod file {path} - Status code: {response.status_code}")
+
+    # Finding files to delete
+    for index, row in localFiles.iterrows():
+        path = row['Path']
+        if path not in remoteFiles['Path'].values and path != "":
+            toDelete = pd.concat([toDelete, pd.DataFrame([row])], ignore_index=True)
+
+    # Deleting files from device
+    if not toDelete.empty:
+        sortedIndex = toDelete['Path'].str.len().sort_values(ascending=False).index
+        toDelete = toDelete.reindex(sortedIndex)
+
+        for index, row in toDelete.iterrows():
+            path = row['Path']
+            print(path)
+            print(f"Deleting {path} from device.")
+            if row['Type'] == "File":
+                try:
+                    os.remove(localPath + path)
+                    print(f"Deleted file {path} successfully.")
+                except FileNotFoundError:
+                    print(f"File {path} not found.")
+                except PermissionError:
+                    print(f"Permission denied to delete file {path}")
+            elif row['Type'] == "Directory":
+                try:   
+                    os.rmdir(localPath + path)
+                    print(f"Deleted directory {path} successfully.")
+                except FileNotFoundError:
+                    print(f"Directory {path} not found.")
+                except PermissionError:
+                    print(f"Permission denied to delete directory {path}")
+        
+    print('Syncing to desktop completed.')
 
 localFiles = getLocalFiles(localPath, clientTZ)
 remoteFiles = getRemoteFiles(url, auth)
 
-syncToCloud(remoteFiles, localFiles, auth, url)
+syncToDesktop(remoteFiles, localFiles, localPath, auth, url)
 
 # while True:
 #     lastRemoteChange = remoteFiles['LastMod'].max()
@@ -232,9 +314,9 @@ syncToCloud(remoteFiles, localFiles, auth, url)
 
 print("Exiting.")
 # syncToCloud(remoteFiles, localFiles, auth)
-for index, row in localFiles.iterrows():
-    print(f"Row {index}: {row.to_dict()}")
+# for index, row in localFiles.iterrows():
+#     print(f"Row {index}: {row.to_dict()}")
 
-for index, row in remoteFiles.iterrows():
-    print(f"Row {index}: {row.to_dict()}")
+# for index, row in remoteFiles.iterrows():
+#     print(f"Row {index}: {row.to_dict()}")
 
