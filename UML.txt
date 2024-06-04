@@ -1,0 +1,42 @@
+!enduml
+activity "Local Filesystem" {
+  activate <<getLocalFiles>>
+  call Get File/Directory Information
+  create Local Files DataFrame
+  deactivate >>
+}
+
+activity "WebDAV Server" {
+  activate <<getRemoteFiles>>
+  call Send PROPFIND Request
+  parse XML Response
+  create Remote Files DataFrame
+  deactivate >>
+}
+
+activity "Sync Logic" {
+  activate <<syncToCloud or syncToDesktop>>
+  call Compare Last Modified Dates (local & remote)
+  alt "Local Files Newer" {
+    call Upload Files to Server (syncToCloud)
+  }
+  alt "Remote Files Newer" {
+    call Download Files from Server (syncToDesktop)
+  }
+  alt "Files in Sync" {
+    call No Action Required
+  }
+  else "Error" { }
+  deactivate >>
+}
+
+rectangle "Cloud Storage" {
+  note right of WebDAV Server: WebDAV Server
+}
+
+Local Filesystem --> Sync Logic
+WebDAV Server --> Sync Logic
+
+loop_right "Every 10 seconds" {
+  activate Sync Logic
+}

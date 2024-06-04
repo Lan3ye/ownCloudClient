@@ -1,0 +1,23 @@
+@startuml
+
+:getRemoteFiles() \ngetLocalFiles();
+
+repeat
+    :Zeitunterschied berechnen;
+    ' !pragma useVerticalIf on
+    start
+    if (Lokale Dateien veraltet) then (Ja)
+        :syncToDesktop() \ngetLocalFiles;
+    elseif (Serverdateien veraltet) then (Ja)
+        :syncToCloud() \ngetRemoteFiles();
+    elseif (Lokal Veränderungen festgestellt) then (Ja)
+        :syncToDesktop() \ngetLocalFiles();
+    elseif (Veränderungen bei Server festgestellt) then (Ja)
+        :syncToCloud \ngetRemoteFiles();
+    elseif (Dateien synchron) then (Ja)
+        :print(Status);
+    else ()
+        :Interner Fehler;
+    endif
+    :sleep 10;
+@enduml

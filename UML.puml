@@ -1,0 +1,29 @@
+@startmindmap
+
+* Initialize
+** Get Local Files
+** Get Remote Files
+
+* Loop
+    * Calculate Time Difference
+        if (Local Files Outdated) then (yes)
+            :syncToDesktop
+            \nGet Local Files;
+        else if Remote Files Outdated
+            syncToCloud
+            Get Remote Files
+        else if Recent Local Changes
+            syncToDesktop
+            Get Local Files
+        else if Recent Remote Changes
+            syncToCloud
+            Get Remote Files
+        else if Files in Sync
+            Print Status
+        else 
+            Error: Unhandled Case
+    Sleep 10
+
+* End
+
+@endmindmap
